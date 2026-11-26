@@ -389,7 +389,7 @@ $('bReset').onclick=()=>{
 const root=document.documentElement;
 function setTheme(t,save){root.dataset.theme=t;$('bTheme').textContent=t==='dark'?'☀ ライト':'🌙 ダーク';if(save)try{localStorage.setItem('theme',t)}catch(_){}}
 let t0=null;try{t0=localStorage.getItem('theme')}catch(_){}
-setTheme(t0||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'),false);
+setTheme(t0||'light',false);
 $('bTheme').onclick=()=>setTheme(root.dataset.theme==='dark'?'light':'dark',true);
 $('ed').textContent=EDITION;
 render();
