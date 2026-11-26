@@ -1,6 +1,6 @@
 # 概要
 
-あそぶかいで作成した、ブラウザ上でそのまま使えるツールをまとめたページです。  
+[あそぶかい](https://sites.google.com/view/itoasobukai/linktree)で作成した、ブラウザ上でそのまま使えるツールをまとめたページです。  
 インストール不要で、PC・スマートフォンのブラウザから利用できます。  
 HTMLファイルをダウンロードし、直接開くとオフラインでも使用できます。  
 制作は主にClaudeを使用して作成しています。
@@ -13,7 +13,8 @@ HTMLファイルをダウンロードし、直接開くとオフラインでも�
 - **概要:** ラウンドごとの得点集計、構成データのJSON保存・読込、結果の画像（PNG）出力ができるスコアシートです。
 - **ソースファイル:**
   - [HTMLファイル（scoresheet_2026.html）](https://github.com/asobukaitools/tools/blob/main/scoresheet/scoresheet_2026.html)
-  - [技リスト組込みスクリプト（Python）](./scoresheet/build.py)
+  - [技リスト組込みスクリプト（Python）](./scoresheet/build.py)  
+    毎年変わるトリックリストをscoresheetに組込むためのスクリプト。使い方はスクリプトの冒頭に書いてあります。
   - [技リスト(csv)](./scoresheet/skills.csv)
 
 ### 2. 競技タイマー
