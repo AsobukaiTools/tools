@@ -15,9 +15,9 @@ HTMLファイルをダウンロードし、直接開くとオフラインでも�
 - **ツールを開く:** [scoresheet_2026.html](./scoresheet_2026.html)
 - **概要:** ラウンドごとの得点集計、構成データのJSON保存・読込、結果の画像（PNG）出力ができるスコアシートです。
 - **ソースファイル:**
-  - [HTMLファイル（scoresheet_2026.html）](https://github.com/ユーザー名/リポジトリ名/blob/main/scoresheet_2026.html)
-  - [技リスト組込みスクリプト（Python）](https://github.com/ユーザー名/リポジトリ名/blob/main/scripts/build.py)
-  - [技リスト(csv)](https://github.com/ユーザー名/リポジトリ名/blob/main/scripts/skills.py)
+  - [HTMLファイル（scoresheet_2026.html）](./scoresheet/scoresheet_2026.html)
+  - [技リスト組込みスクリプト（Python）](./scoresheet/build.py)
+  - [技リスト(csv)](./scoresheet/skills.py)
 
 ### 2. 競技タイマー
 - **ツールを開く:** [tool2.html](./tool2.html)
