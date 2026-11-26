@@ -152,9 +152,6 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let slots=Array(10).fill(null), drag=null, suppress=false;
 
-// デモ用の初期データ
-slots[0]={id:'1-1',result:'ok'};slots[1]={id:'2-3',result:'ok'};slots[2]={id:'4-2',result:'ng'};slots[3]={id:'3-1',result:null};
-
 const pts=s=>s&&s.result==='ok'&&BY[s.id]?BY[s.id].level:0;
 const sub=r=>slots.slice(r*5,r*5+5).reduce((a,s)=>a+pts(s),0);
 
