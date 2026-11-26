@@ -12,7 +12,7 @@ HTMLファイルをダウンロードし、直接開くとオフラインでも�
 - **ツールを開く:** [scoresheet_2026.html](./scoresheet_2026.html)
 - **概要:** ラウンドごとの得点集計、構成データのJSON保存・読込、結果の画像（PNG）出力ができるスコアシートです。
 - **ソースファイル:**
-  - [HTMLファイル（scoresheet_2026.html）](https://asobukaitools.github.io/tricksheet/scoresheet/scoresheet_2026.html)
+  - [HTMLファイル（scoresheet_2026.html）](https://github.com/asobukaitools/tricksheet/blob/main/scoresheet/scoresheet_2026.html)
   - [技リスト組込みスクリプト（Python）](./scoresheet/build.py)
   - [技リスト(csv)](./scoresheet/skills.csv)
 
@@ -20,7 +20,7 @@ HTMLファイルをダウンロードし、直接開くとオフラインでも�
 - **ツールを開く:** [カウントダウンタイマー.html](./CountdownTimer/カウントダウンタイマー.html)
 - **概要:** カウントダウンタイマーです。開始前（タイマーイン）も設定可能です。
 - **ソースファイル:**
-  - [HTMLファイル（カウントダウンタイマー.html）](https://asobukaitools.github.io/tricksheet/CountdownTimer/カウントダウンタイマー.html)
+  - [HTMLファイル（カウントダウンタイマー.html）](https://github.com/asobukaitools/tricksheet/blob/main/CountdownTimer/カウントダウンタイマー.html)
 
 
 ## ライセンス
