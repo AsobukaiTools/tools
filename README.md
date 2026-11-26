@@ -1,6 +1,7 @@
 # tricksheet
-https://asobukaitools.github.io/tricksheet/scoresheet_2026.html
 
+[スコアシートを開く](./scoresheet_2026.html)\
+ \
 KWCスコアシートのWEBアプリ版。練習用など。
 
 制作はClaudeで作成しています。
