@@ -1,5 +1,3 @@
-# tricksheet
-
 # 概要
 
 あそぶかいで作成した、ブラウザ上でそのまま使えるツールをまとめたページです。  
@@ -17,7 +15,7 @@ HTMLファイルをダウンロードし、直接開くとオフラインでも�
 - **ソースファイル:**
   - [HTMLファイル（scoresheet_2026.html）](./scoresheet/scoresheet_2026.html)
   - [技リスト組込みスクリプト（Python）](./scoresheet/build.py)
-  - [技リスト(csv)](./scoresheet/skills.py)
+  - [技リスト(csv)](./scoresheet/skills.csv)
 
 ### 2. 競技タイマー
 - **ツールを開く:** [カウントダウンタイマー.html](./CountdownTimer/カウントダウンタイマー.html)
