@@ -21,7 +21,7 @@ HTMLファイルをダウンロードし、直接開くとオフラインでも�
 - **ツールを開く:** [カウントダウンタイマー.html](./CountdownTimer/カウントダウンタイマー.html)
 - **概要:** カウントダウンタイマーです。開始前（タイマーイン）も設定可能です。
 - **ソースファイル:**
-  - [HTMLファイル（カウントダウンタイマー.html）](https://asobukaitools.github.io/tricksheet/CountDownTimer/カウントダウンタイマー.html)
+  - [HTMLファイル（カウントダウンタイマー.html）](https://asobukaitools.github.io/tricksheet/CountdownTimer/カウントダウンタイマー.html)
 ---
 
 ## ライセンス
