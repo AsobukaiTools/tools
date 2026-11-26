@@ -1,5 +1,5 @@
 # tricksheet
-https://asobukaitools.github.io/tricksheet/scoresheet_2026.html\
+https://asobukaitools.github.io/tricksheet/scoresheet_2026.html
 
 KWCスコアシートのWEBアプリ版。練習用など。
 
