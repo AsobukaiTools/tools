@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カウントダウンタイマー</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --ink:#111111;
+    --alert:#d7263d;
+    --muted:#9a9a9a;
+    --border:#e6e6e6;
+    --panel-bg:#fafafa;
+    /* 英数字は Segoe UI、日本語は BIZ UDゴシック(いずれもOS標準搭載を想定。無い環境は端末の既定ゴシックへ自動フォールバック) */
+    --font-ui:"Segoe UI","BIZ UDPGothic","BIZ UDGothic",sans-serif;
+    --font-mono:"Segoe UI","BIZ UDPGothic","BIZ UDGothic",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;
+    width:100%;height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    font-family:var(--font-ui);
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    position:relative;
+    width:100vw;height:100vh;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* 進捗インジケータ:残り時間を示す細いバー(色は本文と同期) */
+  #progressBar{
+    position:fixed;
+    top:0;left:0;
+    height:5px;
+    width:100%;
+    background:var(--ink);
+    transform-origin:left center;
+    transition:background-color .3s ease;
+    z-index:5;
+  }
+  #progressBar.alert{background:var(--alert);}
+
+  #timerDisplay{
+    font-family:var(--font-mono);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    font-size:clamp(6rem, 24vw, 32rem);
+    line-height:1;
+    color:var(--ink);
+    letter-spacing:0.02em;
+    user-select:none;
+    transition:color .25s ease;
+  }
+  #timerDisplay.alert{
+    color:var(--alert);
+    animation:pulse 1s ease-in-out infinite;
+  }
+  /* スタート前の「3・2・1」カウントイン表示。タイマー本体と同じ見え方で、開始直前の緊張感を伝える */
+  #countInDisplay{
+    display:none;
+    font-family:var(--font-mono);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    font-size:clamp(6rem, 24vw, 32rem);
+    line-height:1;
+    color:var(--ink);
+    user-select:none;
+  }
+  /* コロンはフォントのグリフ位置の都合で数字の中心より低く見えるため、視覚的に持ち上げて中央に揃える */
+  #timerColon{
+    display:inline-block;
+    transform:translateY(-0.09em);
+    padding:0 0.02em;
+  }
+  @media (prefers-reduced-motion: reduce){
+    #timerDisplay.alert{animation:none;}
+  }
+  @keyframes pulse{
+    0%,100%{transform:scale(1);}
+    50%{transform:scale(1.035);}
+  }
+
+  #stateLabel{
+    position:absolute;
+    top:14%;
+    font-family:var(--font-ui);
+    font-size:clamp(0.9rem,1.6vw,1.4rem);
+    font-weight:600;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--muted);
+    user-select:none;
+  }
+
+  /* 歯車(設定)ボタン */
+  #settingsToggle{
+    position:fixed;
+    top:20px;right:20px;
+    width:44px;height:44px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--ink);
+    font-size:20px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    z-index:20;
+    transition:opacity .3s ease, transform .15s ease;
+  }
+  #settingsToggle:hover{transform:rotate(25deg);}
+
+  /* 下部コントロールバー */
+  #controlsBar{
+    position:fixed;
+    bottom:26px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:10px;
+    z-index:20;
+    transition:opacity .3s ease;
+  }
+  .ctrl-btn{
+    font-family:var(--font-ui);
+    font-weight:600;
+    font-size:0.9rem;
+    padding:12px 22px;
+    border-radius:999px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:#fff;
+    cursor:pointer;
+    letter-spacing:0.02em;
+    transition:opacity .15s ease, transform .1s ease;
+  }
+  .ctrl-btn.secondary{
+    background:#fff;
+    color:var(--ink);
+  }
+  .ctrl-btn:active{transform:scale(0.96);}
+  .ctrl-btn:hover{opacity:0.85;}
+
+  /* アイドル時に自動で隠す */
+  body.idle #settingsToggle,
+  body.idle #controlsBar{
+    opacity:0;
+    pointer-events:none;
+  }
+
+  /* 設定パネル */
+  #overlay{
+    position:fixed;inset:0;
+    background:rgba(17,17,17,0.35);
+    z-index:30;
+    display:none;
+  }
+  #overlay.open{display:block;}
+  #settingsPanel{
+    position:fixed;
+    top:0;right:0;
+    width:min(420px,92vw);
+    height:100%;
+    background:var(--panel-bg);
+    border-left:1px solid var(--border);
+    z-index:31;
+    transform:translateX(100%);
+    transition:transform .28s ease;
+    overflow-y:auto;
+    padding:26px 24px 40px;
+    font-family:var(--font-ui);
+    color:var(--ink);
+  }
+  #settingsPanel.open{transform:translateX(0);}
+  #settingsPanel h2{
+    font-size:1rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    font-weight:700;
+    margin:0 0 22px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  #closePanel{
+    background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);
+  }
+  .section{
+    margin-bottom:28px;
+    padding-bottom:22px;
+    border-bottom:1px solid var(--border);
+  }
+  .section:last-child{border-bottom:none;}
+  .section-title{
+    font-size:0.72rem;
+    font-weight:700;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+  label{font-size:0.82rem;color:#555;}
+  input[type=number]{
+    width:64px;
+    padding:8px 6px;
+    text-align:center;
+    border:1px solid var(--border);
+    border-radius:6px;
+    font-family:var(--font-mono);
+    font-size:0.95rem;
+  }
+  select{
+    padding:8px 8px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    font-family:var(--font-ui);
+    font-size:0.85rem;
+    background:#fff;
+    flex:1;
+    min-width:120px;
+  }
+  input[type=file]{
+    font-size:0.78rem;
+    max-width:150px;
+  }
+  .small-btn{
+    border:1px solid var(--border);
+    background:#fff;
+    border-radius:6px;
+    padding:7px 12px;
+    font-size:0.8rem;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .small-btn:hover{background:#f0f0f0;}
+  .apply-btn{
+    width:100%;
+    padding:11px;
+    border-radius:8px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:#fff;
+    font-weight:600;
+    cursor:pointer;
+    font-size:0.85rem;
+  }
+  .apply-btn:disabled{
+    opacity:0.4;cursor:not-allowed;
+  }
+  .trigger-row{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px;
+    margin-bottom:8px;
+  }
+  .trigger-row .row{margin-bottom:6px;}
+  .remove-trigger{
+    background:none;border:none;color:var(--alert);cursor:pointer;font-size:0.78rem;
+    margin-left:auto;
+  }
+  .hint{font-size:0.72rem;color:var(--muted);margin-top:4px;line-height:1.5;}
+  .filename{font-size:0.7rem;color:var(--muted);margin-top:2px;word-break:break-all;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="progressBar"></div>
+  <div id="stateLabel">開始前</div>
+  <div id="timerDisplay"><span id="timerMin">03</span><span id="timerColon">:</span><span id="timerSec">00</span></div>
+  <div id="countInDisplay">3</div>
+</div>
+
+<button id="settingsToggle" title="設定">&#9881;</button>
+
+<div id="controlsBar">
+  <button class="ctrl-btn secondary" id="resetBtn">リセット</button>
+  <button class="ctrl-btn" id="startPauseBtn">開始</button>
+  <button class="ctrl-btn secondary" id="fullscreenBtn">全画面</button>
+</div>
+
+<div id="overlay"></div>
+<div id="settingsPanel">
+  <h2>設定 <button id="closePanel">&times;</button></h2>
+
+  <div class="section">
+    <div class="section-title">合計時間</div>
+    <div class="row">
+      <input type="number" id="totalMin" min="0" max="999" value="3"> <label>分</label>
+      <input type="number" id="totalSec" min="0" max="59" value="0"> <label>秒</label>
+    </div>
+    <button class="apply-btn" id="applyTotal">この時間を設定</button>
+    <div class="hint">タイマー動作中は変更できません。リセットしてから変更してください。</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">スタート前カウントイン</div>
+    <div class="row">
+      <select id="countInSelect" style="flex:0 0 auto;min-width:90px;">
+        <option value="0">0秒(なし)</option>
+        <option value="1">1秒</option><option value="2">2秒</option>
+        <option value="3" selected>3秒</option><option value="4">4秒</option>
+        <option value="5">5秒</option><option value="6">6秒</option>
+        <option value="7">7秒</option><option value="8">8秒</option>
+        <option value="9">9秒</option><option value="10">10秒</option>
+      </select>
+    </div>
+    <div class="hint">「開始」を押してから、設定した秒数だけカウントダウン表示(例:3→2→1)と音を出してタイマーを開始します。0秒の場合は即スタートします。</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">開始時の音</div>
+    <div class="row">
+      <select id="startSoundMode">
+        <option value="whoosh" selected>ドーン(低音・リバーブ)</option>
+        <option value="buzzer_high">ブザー(高め)</option>
+        <option value="beep_single">ビープ(単発)</option>
+        <option value="beep_double">ビープ(2回)</option>
+        <option value="beep_chime">チャイム</option>
+        <option value="none">再生しない</option>
+        <option value="custom">音声ファイルを指定</option>
+      </select>
+    </div>
+    <div class="row" id="startFileRow" style="display:none;">
+      <input type="file" id="startFileInput" accept="audio/*">
+    </div>
+    <div class="filename" id="startFileName"></div>
+    <div class="row" style="gap:10px;margin-top:6px;">
+      <label style="white-space:nowrap;">音量</label>
+      <input type="range" id="startVolumeSlider" min="0" max="100" value="80" style="flex:1;">
+      <span id="startVolumeValue" style="font-family:var(--font-mono);font-size:0.82rem;min-width:34px;text-align:right;">80%</span>
+      <button class="small-btn" id="startVolumeTestBtn">試聴</button>
+      <button class="small-btn" id="startVolumeStopBtn" style="display:none;">停止</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">終了時の音</div>
+    <div class="row">
+      <select id="endSoundMode">
+        <option value="buzzer_high" selected>ブザー(高め・試合終了風)</option>
+        <option value="whoosh">ドーン(低音・リバーブ)</option>
+        <option value="beep_triple">ビープ(3回)</option>
+        <option value="beep_single">ビープ(単発)</option>
+        <option value="beep_chime">チャイム</option>
+        <option value="none">再生しない</option>
+        <option value="custom">音声ファイルを指定</option>
+      </select>
+    </div>
+    <div class="row" id="endFileRow" style="display:none;">
+      <input type="file" id="endFileInput" accept="audio/*">
+    </div>
+    <div class="filename" id="endFileName"></div>
+    <div class="row" style="gap:10px;margin-top:6px;">
+      <label style="white-space:nowrap;">音量</label>
+      <input type="range" id="endVolumeSlider" min="0" max="100" value="80" style="flex:1;">
+      <span id="endVolumeValue" style="font-family:var(--font-mono);font-size:0.82rem;min-width:34px;text-align:right;">80%</span>
+      <button class="small-btn" id="endVolumeTestBtn">試聴</button>
+      <button class="small-btn" id="endVolumeStopBtn" style="display:none;">停止</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">任意の時間に鳴らす(残り時間指定)</div>
+    <div id="triggersList"></div>
+    <button class="small-btn" id="addTrigger">+ 通知を追加</button>
+    <div class="hint">例:残り1分で予鈴を鳴らす、など複数追加できます。</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- state ----------
+  let totalMs = 3*60*1000;
+  let remainingMs = totalMs;
+  let endTimestamp = null;
+  let rafId = null;
+  let running = false;
+  let hasStartedOnce = false;
+  let counting = false;          // 「3・2・1」カウントイン中かどうか
+  let countInIntervalId = null;
+  let triggers = []; // {id, totalSec, sound:{mode,dataUrl,fileName}, fired}
+  let startSound = {mode:'whoosh', dataUrl:null, fileName:null, volume:80};
+  let endSound = {mode:'buzzer_high', dataUrl:null, fileName:null, volume:80};
+
+  // ---------- elements ----------
+  const timerDisplay = document.getElementById('timerDisplay');
+  const countInDisplay = document.getElementById('countInDisplay');
+  const progressBar = document.getElementById('progressBar');
+  const stateLabel = document.getElementById('stateLabel');
+  const startPauseBtn = document.getElementById('startPauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
+  const settingsToggle = document.getElementById('settingsToggle');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const overlay = document.getElementById('overlay');
+  const closePanel = document.getElementById('closePanel');
+  const totalMinInput = document.getElementById('totalMin');
+  const totalSecInput = document.getElementById('totalSec');
+  const applyTotalBtn = document.getElementById('applyTotal');
+  const startSoundMode = document.getElementById('startSoundMode');
+  const endSoundMode = document.getElementById('endSoundMode');
+  const startFileRow = document.getElementById('startFileRow');
+  const endFileRow = document.getElementById('endFileRow');
+  const startFileInput = document.getElementById('startFileInput');
+  const endFileInput = document.getElementById('endFileInput');
+  const startFileName = document.getElementById('startFileName');
+  const endFileName = document.getElementById('endFileName');
+  const triggersList = document.getElementById('triggersList');
+  const addTriggerBtn = document.getElementById('addTrigger');
+  const startVolumeSlider = document.getElementById('startVolumeSlider');
+  const startVolumeValue = document.getElementById('startVolumeValue');
+  const startVolumeTestBtn = document.getElementById('startVolumeTestBtn');
+  const endVolumeSlider = document.getElementById('endVolumeSlider');
+  const endVolumeValue = document.getElementById('endVolumeValue');
+  const endVolumeTestBtn = document.getElementById('endVolumeTestBtn');
+  const startVolumeStopBtn = document.getElementById('startVolumeStopBtn');
+  const endVolumeStopBtn = document.getElementById('endVolumeStopBtn');
+  const countInSelect = document.getElementById('countInSelect');
+
+  // ---------- audio ----------
+  // 音量は「開始音」「終了音」「各通知音」ごとに個別のGainNode(outputGain)で管理する。
+  // 各 playXxx() は outputGain(その音専用の音量ノード)を受け取り、そこへ接続する。
+  let audioCtx = null;
+  function ensureAudioCtx(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+  }
+  // volumePercent(0-100)専用の出力ノードをその都度作成し、destinationへ接続して返す
+  function createOutputGain(volumePercent){
+    const g = audioCtx.createGain();
+    g.gain.value = Math.max(0, Math.min(100, volumePercent != null ? volumePercent : 80)) / 100;
+    g.connect(audioCtx.destination);
+    return g;
+  }
+  function beep(freq, startTime, duration, outputGain){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(outputGain);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.05);
+  }
+  function playBeepPattern(style, outputGain){
+    ensureAudioCtx();
+    const now = audioCtx.currentTime;
+    if(style === 'beep_single'){
+      beep(880, now, 0.28, outputGain);
+    } else if(style === 'beep_double'){
+      beep(880, now, 0.18, outputGain);
+      beep(880, now + 0.28, 0.18, outputGain);
+    } else if(style === 'beep_triple'){
+      beep(880, now, 0.16, outputGain);
+      beep(880, now + 0.24, 0.16, outputGain);
+      beep(880, now + 0.48, 0.16, outputGain);
+    } else if(style === 'beep_chime'){
+      beep(659, now, 0.2, outputGain);
+      beep(784, now + 0.2, 0.2, outputGain);
+      beep(988, now + 0.4, 0.35, outputGain);
+    }
+  }
+
+  // 開始音「ドーン」: 低音の衝撃(サイン波)+ フィルターをかけたノイズ + 人工リバーブ
+  function makeReverbBuffer(seconds, decay){
+    const rate = audioCtx.sampleRate;
+    const length = Math.floor(rate * seconds);
+    const impulse = audioCtx.createBuffer(2, length, rate);
+    for(let ch=0; ch<2; ch++){
+      const data = impulse.getChannelData(ch);
+      for(let i=0;i<length;i++){
+        data[i] = (Math.random()*2-1) * Math.pow(1 - i/length, decay);
+      }
+    }
+    return impulse;
+  }
+  function playWhoosh(outputGain){
+    ensureAudioCtx();
+    const now = audioCtx.currentTime;
+    const dur = 1.3;
+
+    const convolver = audioCtx.createConvolver();
+    convolver.buffer = makeReverbBuffer(2.4, 2.0);
+    const wetGain = audioCtx.createGain();
+    wetGain.gain.value = 0.6;
+    const dryGain = audioCtx.createGain();
+    dryGain.gain.value = 0.6;
+    convolver.connect(wetGain);
+    wetGain.connect(outputGain);
+    dryGain.connect(outputGain);
+
+    const bufSize = Math.floor(audioCtx.sampleRate * dur);
+    const buffer = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufSize;i++){ data[i] = Math.random()*2-1; }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    const noiseFilter = audioCtx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.setValueAtTime(1200, now);
+    noiseFilter.frequency.exponentialRampToValueAtTime(70, now + dur);
+    noiseFilter.Q.value = 0.6;
+
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.28, now + 0.12);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(dryGain);
+    noiseGain.connect(convolver);
+
+    const thump = audioCtx.createOscillator();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(42, now);
+    thump.frequency.exponentialRampToValueAtTime(16, now + 0.6);
+    const thumpGain = audioCtx.createGain();
+    thumpGain.gain.setValueAtTime(0.0001, now);
+    thumpGain.gain.exponentialRampToValueAtTime(0.55, now + 0.06);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+    thump.connect(thumpGain);
+    thumpGain.connect(dryGain);
+    thumpGain.connect(convolver);
+
+    noise.start(now);
+    noise.stop(now + dur + 0.05);
+    thump.start(now);
+    thump.stop(now + 0.75);
+  }
+
+  // 終了音「ブザー」: バスケットボール試合終了風(高め・三角波・デチューンで唸り)。継続時間 2.0秒。
+  function playBuzzerHigh(outputGain){
+    ensureAudioCtx();
+    const now = audioCtx.currentTime;
+    const dur = 2.0;
+
+    const envGain = audioCtx.createGain();
+    envGain.gain.setValueAtTime(0.0001, now);
+    envGain.gain.exponentialRampToValueAtTime(0.4, now + 0.05);
+    envGain.gain.setValueAtTime(0.4, now + dur - 0.15);
+    envGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 2200;
+    filter.Q.value = 0.5;
+
+    filter.connect(envGain);
+    envGain.connect(outputGain);
+
+    const freqs = [440, 441.5];
+    freqs.forEach((f) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = f;
+      const g = audioCtx.createGain();
+      g.gain.value = 0.5;
+      osc.connect(g);
+      g.connect(filter);
+      osc.start(now);
+      osc.stop(now + dur);
+    });
+  }
+
+  // 再生中のアップロード音声を追跡し、「停止」ボタンで止められるようにする
+  const activeAudios = new Set();
+  function stopAllCustomAudio(){
+    activeAudios.forEach(a => { try{ a.pause(); a.currentTime = 0; }catch(e){} });
+    activeAudios.clear();
+  }
+
+  // タイマーの一時停止・再開に合わせて、再生中のアップロード音声も一時停止・再開する
+  function pauseAllCustomAudio(){
+    activeAudios.forEach(a => { try{ a.pause(); }catch(e){} });
+  }
+  function resumeAllCustomAudio(){
+    activeAudios.forEach(a => { a.play().catch(()=>{}); });
+  }
+
+  function playSound(cfg){
+    if(!cfg || cfg.mode === 'none') return;
+    const volumePercent = cfg.volume != null ? cfg.volume : 80;
+    if(cfg.mode === 'custom' && cfg.dataUrl){
+      const a = new Audio(cfg.dataUrl);
+      a.volume = Math.max(0, Math.min(100, volumePercent)) / 100;
+      activeAudios.add(a);
+      a.onended = () => activeAudios.delete(a);
+      a.play().catch(()=>{ activeAudios.delete(a); });
+      return;
+    }
+    ensureAudioCtx();
+    const outputGain = createOutputGain(volumePercent);
+    if(cfg.mode === 'whoosh'){
+      playWhoosh(outputGain);
+    } else if(cfg.mode === 'buzzer_high'){
+      playBuzzerHigh(outputGain);
+    } else if(cfg.mode.startsWith('beep_')){
+      playBeepPattern(cfg.mode, outputGain);
+    }
+  }
+
+  // 「3・2・1」カウントイン用の音(確定パターン1:同じ高さの短いビープ)
+  function playCountInBeep(){
+    ensureAudioCtx();
+    const now = audioCtx.currentTime;
+    const outputGain = createOutputGain(80);
+    beep(880, now, 0.16, outputGain);
+  }
+
+  // ---------- helpers ----------
+  const timerMinEl = document.getElementById('timerMin');
+  const timerSecEl = document.getElementById('timerSec');
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function updateDisplay(){
+    const remSec = Math.max(0, Math.ceil(remainingMs/1000));
+    const m = Math.floor(remSec/60);
+    const s = remSec % 60;
+    timerMinEl.textContent = pad(m);
+    timerSecEl.textContent = pad(s);
+    const isAlert = remSec <= 10 && remainingMs > 0;
+    timerDisplay.classList.toggle('alert', isAlert);
+    progressBar.classList.toggle('alert', isAlert);
+    const pct = totalMs > 0 ? Math.max(0, Math.min(100, (remainingMs/totalMs)*100)) : 0;
+    progressBar.style.width = pct + '%';
+  }
+
+  // ---------- triggers UI ----------
+  function renderTriggers(){
+    triggersList.innerHTML = '';
+    triggers.forEach((t, idx) => {
+      const row = document.createElement('div');
+      row.className = 'trigger-row';
+
+      const timeRow = document.createElement('div');
+      timeRow.className = 'row';
+      const totalSec = t.totalSec;
+      const m = Math.floor(totalSec/60), s = totalSec % 60;
+
+      const minInput = document.createElement('input');
+      minInput.type='number'; minInput.min=0; minInput.max=999; minInput.value=m;
+      minInput.style.width='54px';
+      const minLabel = document.createElement('label'); minLabel.textContent='分';
+      const secInput = document.createElement('input');
+      secInput.type='number'; secInput.min=0; secInput.max=59; secInput.value=s;
+      secInput.style.width='54px';
+      const secLabel = document.createElement('label'); secLabel.textContent='秒 残り';
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-trigger';
+      removeBtn.textContent = '削除';
+      removeBtn.onclick = () => { triggers.splice(idx,1); renderTriggers(); };
+
+      minInput.onchange = () => { t.totalSec = (parseInt(minInput.value)||0)*60 + (parseInt(secInput.value)||0); t.fired=false; };
+      secInput.onchange = () => { t.totalSec = (parseInt(minInput.value)||0)*60 + (parseInt(secInput.value)||0); t.fired=false; };
+
+      timeRow.append(minInput, minLabel, secInput, secLabel, removeBtn);
+
+      const soundRow = document.createElement('div');
+      soundRow.className = 'row';
+      const sel = document.createElement('select');
+      sel.innerHTML = `
+        <option value="whoosh">ドーン(低音・リバーブ)</option>
+        <option value="buzzer_high">ブザー(高め)</option>
+        <option value="beep_single">ビープ(単発)</option>
+        <option value="beep_double">ビープ(2回)</option>
+        <option value="beep_triple">ビープ(3回)</option>
+        <option value="beep_chime">チャイム</option>
+        <option value="custom">音声ファイルを指定</option>
+      `;
+      sel.value = (t.sound.mode.startsWith('beep_') || t.sound.mode === 'whoosh' || t.sound.mode === 'buzzer_high') ? t.sound.mode : 'custom';
+      const fileInput = document.createElement('input');
+      fileInput.type='file'; fileInput.accept='audio/*';
+      fileInput.style.display = sel.value === 'custom' ? 'block' : 'none';
+      const fnameDiv = document.createElement('div');
+      fnameDiv.className='filename';
+      fnameDiv.textContent = t.sound.fileName || '';
+
+      sel.onchange = () => {
+        if(sel.value === 'custom'){
+          fileInput.style.display='block';
+          t.sound.mode = t.sound.dataUrl ? 'custom' : 'custom';
+        } else {
+          fileInput.style.display='none';
+          t.sound.mode = sel.value;
+        }
+      };
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          t.sound.dataUrl = reader.result;
+          t.sound.fileName = file.name;
+          t.sound.mode = 'custom';
+          fnameDiv.textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      soundRow.append(sel, fileInput);
+
+      const volRow = document.createElement('div');
+      volRow.className = 'row';
+      volRow.style.marginTop = '4px';
+      const volLabel = document.createElement('label');
+      volLabel.textContent = '音量';
+      volLabel.style.whiteSpace = 'nowrap';
+      const volSlider = document.createElement('input');
+      volSlider.type = 'range'; volSlider.min = 0; volSlider.max = 100;
+      volSlider.value = t.sound.volume != null ? t.sound.volume : 80;
+      volSlider.style.flex = '1';
+      const volValue = document.createElement('span');
+      volValue.style.fontFamily = "var(--font-mono)";
+      volValue.style.fontSize = '0.82rem';
+      volValue.style.minWidth = '34px';
+      volValue.style.textAlign = 'right';
+      volValue.textContent = volSlider.value + '%';
+      const volTestBtn = document.createElement('button');
+      volTestBtn.className = 'small-btn';
+      volTestBtn.textContent = '試聴';
+      volSlider.oninput = () => {
+        t.sound.volume = parseInt(volSlider.value);
+        volValue.textContent = volSlider.value + '%';
+      };
+      volTestBtn.onclick = () => { ensureAudioCtx(); playSound(t.sound); };
+      const volStopBtn = document.createElement('button');
+      volStopBtn.className = 'small-btn';
+      volStopBtn.textContent = '停止';
+      volStopBtn.style.display = sel.value === 'custom' ? '' : 'none';
+      volStopBtn.onclick = stopAllCustomAudio;
+      sel.addEventListener('change', () => {
+        volStopBtn.style.display = sel.value === 'custom' ? '' : 'none';
+      });
+      volRow.append(volLabel, volSlider, volValue, volTestBtn, volStopBtn);
+
+      row.append(timeRow, soundRow, fnameDiv, volRow);
+      triggersList.appendChild(row);
+    });
+  }
+  addTriggerBtn.onclick = () => {
+    triggers.push({ totalSec: Math.max(0, Math.floor((remainingMs/1000)) - 30), sound:{mode:'beep_single', dataUrl:null, fileName:null, volume:80}, fired:false });
+    renderTriggers();
+  };
+
+  // ---------- sound mode selects (start/end) ----------
+  function bindSoundSelect(selectEl, fileRowEl, fileInputEl, fileNameEl, targetCfg, stopBtnEl){
+    selectEl.onchange = () => {
+      stopBtnEl.style.display = selectEl.value === 'custom' ? '' : 'none';
+      if(selectEl.value === 'custom'){
+        fileRowEl.style.display = 'flex';
+        targetCfg.mode = targetCfg.dataUrl ? 'custom' : 'custom';
+      } else {
+        fileRowEl.style.display = 'none';
+        targetCfg.mode = selectEl.value;
+      }
+    };
+    fileInputEl.onchange = (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        targetCfg.dataUrl = reader.result;
+        targetCfg.fileName = file.name;
+        targetCfg.mode = 'custom';
+        fileNameEl.textContent = file.name;
+      };
+      reader.readAsDataURL(file);
+    };
+  }
+  bindSoundSelect(startSoundMode, startFileRow, startFileInput, startFileName, startSound, startVolumeStopBtn);
+  bindSoundSelect(endSoundMode, endFileRow, endFileInput, endFileName, endSound, endVolumeStopBtn);
+  startSoundMode.value = 'whoosh';
+  endSoundMode.value = 'buzzer_high';
+
+  // ---------- 開始音・終了音の個別音量スライダー ----------
+  startVolumeSlider.oninput = () => {
+    startSound.volume = parseInt(startVolumeSlider.value);
+    startVolumeValue.textContent = startVolumeSlider.value + '%';
+  };
+  startVolumeTestBtn.onclick = () => { playSound(startSound); };
+  startVolumeStopBtn.onclick = stopAllCustomAudio;
+
+  endVolumeSlider.oninput = () => {
+    endSound.volume = parseInt(endVolumeSlider.value);
+    endVolumeValue.textContent = endVolumeSlider.value + '%';
+  };
+  endVolumeTestBtn.onclick = () => { playSound(endSound); };
+  endVolumeStopBtn.onclick = stopAllCustomAudio;
+
+  // ---------- total time ----------
+  applyTotalBtn.onclick = () => {
+    if(running) return;
+    const m = parseInt(totalMinInput.value) || 0;
+    const s = Math.min(59, parseInt(totalSecInput.value) || 0);
+    totalMs = (m*60 + s) * 1000;
+    if(totalMs <= 0) totalMs = 1000;
+    remainingMs = totalMs;
+    hasStartedOnce = false;
+    triggers.forEach(t => t.fired = false);
+    updateDisplay();
+    stateLabel.textContent = '開始前';
+  };
+
+  // ---------- main loop ----------
+  function loop(){
+    remainingMs = endTimestamp - Date.now();
+    if(remainingMs <= 0){
+      remainingMs = 0;
+      updateDisplay();
+      finish();
+      return;
+    }
+    updateDisplay();
+    checkTriggers();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function checkTriggers(){
+    const remSec = Math.ceil(remainingMs/1000);
+    triggers.forEach(t => {
+      if(!t.fired && t.totalSec === remSec && t.totalSec > 0){
+        playSound(t.sound);
+        t.fired = true;
+      }
+    });
+  }
+
+  function finish(){
+    running = false;
+    cancelAnimationFrame(rafId);
+    playSound(endSound);
+    startPauseBtn.textContent = '開始';
+    stateLabel.textContent = '終了';
+  }
+
+  function start(){
+    ensureAudioCtx();
+    if(!hasStartedOnce){
+      playSound(startSound);
+      hasStartedOnce = true;
+      triggers.forEach(t => t.fired = false);
+    } else {
+      resumeAllCustomAudio();   // 一時停止からの再開時は、止めていた音声も続きから再生
+    }
+    endTimestamp = Date.now() + remainingMs;
+    running = true;
+    startPauseBtn.textContent = '一時停止';
+    stateLabel.textContent = '計測中';
+    loop();
+  }
+  function pause(){
+    pauseAllCustomAudio();      // タイマーの一時停止に合わせて音声も一時停止
+    running = false;
+    cancelAnimationFrame(rafId);
+    remainingMs = Math.max(0, endTimestamp - Date.now());
+    startPauseBtn.textContent = '再開';
+    stateLabel.textContent = '一時停止中';
+  }
+  function reset(){
+    stopAllCustomAudio();       // リセット時は再生中の音声を停止し、先頭に戻す
+    running = false;
+    hasStartedOnce = false;
+    if(counting){
+      counting = false;
+      if(countInIntervalId){ clearInterval(countInIntervalId); countInIntervalId = null; }
+      countInDisplay.style.display = 'none';
+      timerDisplay.style.display = '';
+      startPauseBtn.disabled = false;
+    }
+    cancelAnimationFrame(rafId);
+    remainingMs = totalMs;
+    triggers.forEach(t => t.fired = false);
+    updateDisplay();
+    startPauseBtn.textContent = '開始';
+    stateLabel.textContent = '開始前';
+  }
+
+  // カウントイン(0〜10秒を設定で選択。初回スタート時のみ)。カウントごとにビープを鳴らし、
+  // 0になったら countInDisplay を隠して通常のタイマー表示に戻し、start() を呼ぶ。
+  function beginCountIn(){
+    ensureAudioCtx();
+    const countInSec = parseInt(countInSelect.value) || 0;
+    if(countInSec <= 0){ start(); return; }   // 0秒: カウントインなしで即スタート
+    counting = true;
+    startPauseBtn.disabled = true;
+    timerDisplay.style.display = 'none';
+    countInDisplay.style.display = 'block';
+    stateLabel.textContent = '';
+
+    let n = countInSec;
+    countInDisplay.textContent = n;
+    playCountInBeep();
+
+    countInIntervalId = setInterval(() => {
+      n -= 1;
+      if(n > 0){
+        countInDisplay.textContent = n;
+        playCountInBeep();
+      } else {
+        clearInterval(countInIntervalId);
+        countInIntervalId = null;
+        counting = false;
+        countInDisplay.style.display = 'none';
+        timerDisplay.style.display = '';
+        startPauseBtn.disabled = false;
+        start();
+      }
+    }, 1000);
+  }
+
+  startPauseBtn.onclick = () => {
+    if(counting) return;
+    if(running){
+      pause();
+    } else if(!hasStartedOnce){
+      beginCountIn();
+    } else {
+      start();
+    }
+  };
+  resetBtn.onclick = reset;
+
+  // ---------- fullscreen ----------
+  fullscreenBtn.onclick = () => {
+    if(!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(()=>{});
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  // ---------- settings panel ----------
+  function openPanel(){
+    settingsPanel.classList.add('open');
+    overlay.classList.add('open');
+  }
+  function closePanelFn(){
+    settingsPanel.classList.remove('open');
+    overlay.classList.remove('open');
+  }
+  settingsToggle.onclick = openPanel;
+  closePanel.onclick = closePanelFn;
+  overlay.onclick = closePanelFn;
+
+  // ---------- idle auto-hide of controls ----------
+  let idleTimer = null;
+  function resetIdle(){
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if(running) document.body.classList.add('idle');
+    }, 3000);
+  }
+  document.addEventListener('mousemove', resetIdle);
+  document.addEventListener('touchstart', resetIdle);
+  resetIdle();
+
+  // ---------- init ----------
+  renderTriggers();
+  updateDisplay();
+})();
+</script>
+</body>
+</html>
