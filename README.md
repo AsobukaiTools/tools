@@ -20,10 +20,10 @@ HTMLファイルをダウンロードし、直接開くとオフラインでも�
   - [技リスト(csv)](./scoresheet/skills.py)
 
 ### 2. 競技タイマー
-- **ツールを開く:** [tool2.html](./tool2.html)
+- **ツールを開く:** [カウントダウンタイマー.html](./CountdownTimer/カウントダウンタイマー.html)
 - **概要:** カウントダウンタイマーです。開始前（タイマーイン）も設定可能です。
 - **ソースファイル:**
-  - [HTMLファイル（tool2.html）](https://github.com/ユーザー名/リポジトリ名/blob/main/tool2.html)
+  - [HTMLファイル（カウントダウンタイマー.html）](./CountdownTimer/カウントダウンタイマー.html)
 ---
 
 ## ライセンス
